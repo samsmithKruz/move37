@@ -177,8 +177,7 @@ export const updateUser = catchAsync(async (req, res) => {
   const data = {};
   name && (data.name = name);
   email && (data.email = email);
-  console.log({data})
-  const user = await userService.updateUser(req.user.id, data);
+  const user = await userService.updateUser(req.params.id, data);
 
   res.status(200).json({
     status: "success",
