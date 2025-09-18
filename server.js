@@ -1,7 +1,7 @@
 // server.js
 import app from "./src/app.js";
 import { WebSocketServer } from "ws";
-import { createWebSocketServer } from "./src/config/websocket.js";
+import { initializeWebSocket } from "./src/config/websocket.js";
 import database from "./src/config/database.js";
 import models from "./src/models/index.js";
 
@@ -9,7 +9,7 @@ const PORT = process.env.PORT || 3000;
 
 // Initialize WebSocket server
 const wss = new WebSocketServer({ noServer: true });
-createWebSocketServer(wss, models); // Pass models to WebSocket server
+const webSocketService = initializeWebSocket(wss, models);
 
 // Start HTTP server with database connection check
 const startServer = async () => {
@@ -27,10 +27,12 @@ const startServer = async () => {
       console.log(`🚀 Server running on port ${PORT}`);
       console.log(`📚 API Documentation: http://localhost:${PORT}/api-docs`);
       console.log(`❤️  Health check: http://localhost:${PORT}/health`);
+      console.log(`🔌 WebSocket server initialized`);
     });
 
     // Handle WebSocket upgrades
     server.on("upgrade", (request, socket, head) => {
+      // Optional: Add authentication for WebSocket connections
       wss.handleUpgrade(request, socket, head, (ws) => {
         wss.emit("connection", ws, request);
       });
@@ -42,6 +44,7 @@ const startServer = async () => {
     process.exit(1);
   }
 };
+
 // Start the server
 let server;
 

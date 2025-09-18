@@ -1,7 +1,7 @@
 // src/controllers/userController.js
 import { catchAsync } from "../middlewares/errorHandler.js";
 import { UserService } from "../services/userService.js";
-import { generateToken } from "../utils/helpers.js"; // moved jwt to its own utils file
+import { generateToken } from "../utils/helpers.js";
 
 /**
  * @swagger
@@ -14,7 +14,7 @@ import { generateToken } from "../utils/helpers.js"; // moved jwt to its own uti
  * @swagger
  * /users:
  *   post:
- *     summary: Create a new user (sign up)
+ *     summary: Create a new user (Sign up)
  *     tags: [Users]
  *     requestBody:
  *       required: true
@@ -41,7 +41,7 @@ import { generateToken } from "../utils/helpers.js"; // moved jwt to its own uti
  *                 minLength: 6
  *     responses:
  *       201:
- *         description: User created successfully with JWT
+ *         description: User created successfully
  *         content:
  *           application/json:
  *             schema:
@@ -58,6 +58,10 @@ import { generateToken } from "../utils/helpers.js"; // moved jwt to its own uti
  *                     token:
  *                       type: string
  *                       example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+ *       400:
+ *         $ref: '#/components/responses/ValidationError'
+ *       409:
+ *         description: User with this email already exists
  */
 export const createUser = catchAsync(async (req, res) => {
   const userService = new UserService(req.models);
@@ -66,7 +70,7 @@ export const createUser = catchAsync(async (req, res) => {
 
   res.status(201).json({
     status: "success",
-    data: { ...user, token },
+    data: { user, token },
   });
 });
 
@@ -83,15 +87,37 @@ export const createUser = catchAsync(async (req, res) => {
  *         name: page
  *         schema:
  *           type: integer
+ *           minimum: 1
  *           default: 1
+ *         description: Page number
  *       - in: query
  *         name: limit
  *         schema:
  *           type: integer
+ *           minimum: 1
+ *           maximum: 100
  *           default: 50
+ *         description: Number of users per page
  *     responses:
  *       200:
- *         description: List of users (requires JWT)
+ *         description: List of users retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     users:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/User'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
  */
 export const getUsers = catchAsync(async (req, res) => {
   const userService = new UserService(req.models);
@@ -111,6 +137,33 @@ export const getUsers = catchAsync(async (req, res) => {
  *     tags: [Users]
  *     security:
  *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: User ID
+ *     responses:
+ *       200:
+ *         description: User details retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     user:
+ *                       $ref: '#/components/schemas/User'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
  */
 export const getUser = catchAsync(async (req, res) => {
   const userService = new UserService(req.models);
@@ -124,13 +177,20 @@ export const getUser = catchAsync(async (req, res) => {
 
 /**
  * @swagger
- * /users:
+ * /users/{id}:
  *   put:
  *     summary: Update user information
- *     description: Update the details of an authenticated user (except password). Requires JWT authentication.
+ *     description: Update user details (name, email). Cannot update password through this endpoint.
  *     tags: [Users]
  *     security:
  *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: User ID
  *     requestBody:
  *       required: true
  *       content:
@@ -162,22 +222,32 @@ export const getUser = catchAsync(async (req, res) => {
  *                     user:
  *                       $ref: '#/components/schemas/User'
  *       400:
- *         description: Validation error (missing or invalid data)
+ *         $ref: '#/components/responses/ValidationError'
  *       401:
- *         description: Unauthorized (JWT missing or invalid)
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         description: Forbidden - Cannot update other users
  *       404:
- *         description: User not found
+ *         $ref: '#/components/responses/NotFound'
  *       409:
  *         description: Email already taken by another user
  */
-
 export const updateUser = catchAsync(async (req, res) => {
+  //   // Check if user is updating their own profile
+  //   if (req.user.id !== req.params.id) {
+  //     return res.status(403).json({
+  //       status: "fail",
+  //       message: "You can only update your own profile"
+  //     });
+  //   }
+
   const userService = new UserService(req.models);
   const { name, email } = req.body;
-  const data = {};
-  name && (data.name = name);
-  email && (data.email = email);
-  const user = await userService.updateUser(req.params.id, data);
+  const updateData = {};
+  if (name) updateData.name = name;
+  if (email) updateData.email = email;
+
+  const user = await userService.updateUser(req.params.id, updateData);
 
   res.status(200).json({
     status: "success",
@@ -193,8 +263,61 @@ export const updateUser = catchAsync(async (req, res) => {
  *     tags: [Users]
  *     security:
  *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: User ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - currentPassword
+ *               - newPassword
+ *             properties:
+ *               currentPassword:
+ *                 type: string
+ *                 format: password
+ *                 description: Current password
+ *               newPassword:
+ *                 type: string
+ *                 format: password
+ *                 description: New password (min 6 characters)
+ *     responses:
+ *       200:
+ *         description: Password updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 message:
+ *                   type: string
+ *                   example: Password updated successfully
+ *       400:
+ *         $ref: '#/components/responses/ValidationError'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         description: Forbidden - Cannot change other users' passwords
  */
 export const changePassword = catchAsync(async (req, res) => {
+  //   // Check if user is changing their own password
+  //   if (req.user.id !== req.params.id) {
+  //     return res.status(403).json({
+  //       status: "fail",
+  //       message: "You can only change your own password"
+  //     });
+  //   }
+
   const userService = new UserService(req.models);
   await userService.changePassword(
     req.params.id,
@@ -226,13 +349,15 @@ export const changePassword = catchAsync(async (req, res) => {
  *             properties:
  *               email:
  *                 type: string
+ *                 format: email
  *                 example: john.doe@example.com
  *               password:
  *                 type: string
+ *                 format: password
  *                 example: securePassword123
  *     responses:
  *       200:
- *         description: Login successful with JWT
+ *         description: Login successful
  *         content:
  *           application/json:
  *             schema:
@@ -249,6 +374,10 @@ export const changePassword = catchAsync(async (req, res) => {
  *                     token:
  *                       type: string
  *                       example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+ *       401:
+ *         description: Invalid email or password
+ *       400:
+ *         $ref: '#/components/responses/ValidationError'
  */
 export const loginUser = catchAsync(async (req, res) => {
   const userService = new UserService(req.models);
@@ -263,11 +392,12 @@ export const loginUser = catchAsync(async (req, res) => {
       message: "Invalid email or password",
     });
   }
+
   const token = generateToken(user);
 
   res.status(200).json({
     status: "success",
-    data: { ...user, token },
+    data: { user, token },
   });
 });
 
@@ -275,16 +405,41 @@ export const loginUser = catchAsync(async (req, res) => {
  * @swagger
  * /users/{id}:
  *   delete:
- *     summary: Delete user by ID
+ *     summary: Delete user account
  *     tags: [Users]
  *     security:
  *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: User ID
+ *     responses:
+ *       200:
+ *         description: User deleted successfully
+ *         $ref: '#/components/responses/ApiResponse'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         description: Forbidden - Cannot delete other users
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
  */
 export const deleteUser = catchAsync(async (req, res) => {
+  //   // Check if user is deleting their own account
+  //   if (req.user.id !== req.params.id) {
+  //     return res.status(403).json({
+  //       status: "fail",
+  //       message: "You can only delete your own account"
+  //     });
+  //   }
+
   const userService = new UserService(req.models);
   await userService.deleteUser(req.params.id);
 
-  res.status(204).json({
+  return res.status(200).json({
     status: "success",
     message: "User deleted successfully",
   });
@@ -294,10 +449,44 @@ export const deleteUser = catchAsync(async (req, res) => {
  * @swagger
  * /users/{id}/polls:
  *   get:
- *     summary: Get a user with their polls
+ *     summary: Get a user with their created polls
  *     tags: [Users]
  *     security:
  *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: User ID
+ *     responses:
+ *       200:
+ *         description: User with polls retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     user:
+ *                       allOf:
+ *                         - $ref: '#/components/schemas/User'
+ *                         - type: object
+ *                           properties:
+ *                             polls:
+ *                               type: array
+ *                               items:
+ *                                 $ref: '#/components/schemas/Poll'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
  */
 export const getUserWithPolls = catchAsync(async (req, res) => {
   const userService = new UserService(req.models);
@@ -313,14 +502,85 @@ export const getUserWithPolls = catchAsync(async (req, res) => {
  * @swagger
  * /users/{id}/votes:
  *   get:
- *     summary: Get a user with their votes
+ *     summary: Get a user with their voting history
  *     tags: [Users]
  *     security:
  *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: User ID
+ *     responses:
+ *       200:
+ *         description: User with votes retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     user:
+ *                       allOf:
+ *                         - $ref: '#/components/schemas/User'
+ *                         - type: object
+ *                           properties:
+ *                             votes:
+ *                               type: array
+ *                               items:
+ *                                 $ref: '#/components/schemas/Vote'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
  */
 export const getUserWithVotes = catchAsync(async (req, res) => {
   const userService = new UserService(req.models);
   const user = await userService.getUserWithVotes(req.params.id);
+
+  res.status(200).json({
+    status: "success",
+    data: { user },
+  });
+});
+
+/**
+ * @swagger
+ * /users/me:
+ *   get:
+ *     summary: Get current authenticated user
+ *     tags: [Users]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Current user details
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     user:
+ *                       $ref: '#/components/schemas/User'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ */
+export const getCurrentUser = catchAsync(async (req, res) => {
+  const userService = new UserService(req.models);
+  const user = await userService.getUserById(req.user.id);
 
   res.status(200).json({
     status: "success",

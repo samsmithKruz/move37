@@ -18,6 +18,7 @@ import errorHandler, { notFoundHandler } from "./middlewares/errorHandler.js";
 import swaggerSpec from "./docs/swagger.js";
 import swaggerUi from "swagger-ui-express";
 import database from "./config/database.js";
+import { getWebSocketService } from "./config/websocket.js";
 
 // Load environment variables
 dotenv.config({ quiet: true });
@@ -79,6 +80,20 @@ app.get("/health", async (req, res) => {
 app.use("/api/users", userRoutes);
 app.use("/api/polls", pollRoutes);
 app.use("/api/votes", voteRoutes);
+
+app.get("/api/websocket-stats", (req, res) => {
+  const webSocketService = getWebSocketService();
+  if (webSocketService) {
+    return res.json({
+      status: "success",
+      data: webSocketService.getStats(),
+    });
+  } 
+    return res.status(503).json({
+      status: "error",
+      message: "WebSocket service not available",
+    });
+});
 
 // 404 handler
 app.use("*", (req, res) => {

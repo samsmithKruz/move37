@@ -4,12 +4,12 @@ import { UnauthorizedError } from "./errorHandler.js";
 export const protect = (req, res, next) => {
   let token;
 
-  if (req.headers.authorization?.startsWith('Bearer ')) {
-    token = req.headers.authorization.split(' ')[1];
+  if (req.headers.authorization?.startsWith("Bearer ")) {
+    token = req.headers.authorization.split(" ")[1];
   }
 
   if (!token) {
-    throw new UnauthorizedError('Not authorized, token missing');
+    throw new UnauthorizedError("Not authorized, token missing");
   }
 
   try {
@@ -17,6 +17,6 @@ export const protect = (req, res, next) => {
     req.user = decoded; // { id, email }
     next();
   } catch (err) {
-    throw new UnauthorizedError('Not authorized, invalid token');
+    throw new UnauthorizedError("Not authorized, invalid token");
   }
 };
