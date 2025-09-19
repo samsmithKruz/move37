@@ -271,6 +271,7 @@ npm start
 ## 📊 Database Schema
 
 The application uses PostgreSQL with the following relationships:
+<img width="1424" height="906" alt="Untitled-dbdiagram-io-09-18-2025_07_53_PM" src="https://github.com/user-attachments/assets/3f6483ee-659e-4442-8bb1-387ca1285281" />
 
 - **Users** → **Polls** (One-to-Many)
 - **Polls** → **PollOptions** (One-to-Many) 
