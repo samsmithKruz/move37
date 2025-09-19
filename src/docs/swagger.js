@@ -176,6 +176,35 @@ const options = {
             },
           },
         },
+        Pagination: {
+          type: "object",
+          properties: {
+            page: {
+              type: "int",
+              description: "Page",
+            },
+            limit: {
+              type: "int",
+              description: "limit",
+            },
+            totalCount: {
+              type: "int",
+              description: "Total count",
+            },
+            totalPages: {
+              type: "int",
+              description: "Total Page",
+            },
+            hasNext: {
+              type: "bool",
+              description: "Next page check",
+            },
+            hasPrev: {
+              type: "bool",
+              description: "Previous page check",
+            },
+          },
+        },
       },
       responses: {
         NotFound: {
