@@ -84,6 +84,52 @@
             </div>
         </div>
 
+        <!-- Data Visualization Section -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+            <!-- Polls Section -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">Polls</h2>
+                <div class="mb-4">
+                    <button onclick="loadAllPolls()" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded w-full">
+                        Load All Polls
+                    </button>
+                </div>
+                <div id="pollsList" class="space-y-4 max-h-96 overflow-y-auto">
+                    <div class="text-gray-500 text-center py-4">No polls loaded</div>
+                </div>
+            </div>
+
+            <!-- Poll Options Section -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">Poll Options</h2>
+                <div class="mb-4">
+                    <input type="text" id="pollIdForOptions" placeholder="Enter Poll ID" 
+                        class="w-full px-3 py-2 border border-gray-300 rounded mb-2">
+                    <button onclick="loadPollOptions()" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded w-full">
+                        Load Options
+                    </button>
+                </div>
+                <div id="pollOptionsList" class="space-y-2 max-h-96 overflow-y-auto">
+                    <div class="text-gray-500 text-center py-4">Select a poll to view options</div>
+                </div>
+            </div>
+
+            <!-- Votes Section -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">Votes</h2>
+                <div class="mb-4">
+                    <input type="text" id="pollIdForVotes" placeholder="Enter Poll ID" 
+                        class="w-full px-3 py-2 border border-gray-300 rounded mb-2">
+                    <button onclick="loadPollVotes()" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded w-full">
+                        Load Votes
+                    </button>
+                </div>
+                <div id="votesList" class="space-y-2 max-h-96 overflow-y-auto">
+                    <div class="text-gray-500 text-center py-4">Select a poll to view votes</div>
+                </div>
+            </div>
+        </div>
+
         <!-- Message Log -->
         <div class="bg-white rounded-lg shadow p-6 mt-6">
             <h2 class="text-xl font-semibold text-gray-800 mb-4">Message Log</h2>
@@ -136,7 +182,6 @@
         const maxReconnectAttempts = 5;
         let token = null;
         let apiUrl = 'http://localhost:3000/api/';
-
 
         async function getToken() {
             if (token) return token;
@@ -192,7 +237,6 @@
                 });
         }
 
-
         // Update UI based on connection status
         function updateConnectionStatus(connected) {
             const statusElem = document.getElementById('connectionStatus');
@@ -247,8 +291,19 @@
                         const data = JSON.parse(event.data);
                         if (data.type === 'poll_update') {
                             logMessage(`Poll ${data.pollId} updated: ${JSON.stringify(data.data)}`, 'info');
+                            // Refresh the poll data when updates are received
+                            if (data.pollId) {
+                                loadPollDetails(data.pollId);
+                            }
                         } else if (data.type === 'user_update') {
                             logMessage(`User ${data.userId} update: ${JSON.stringify(data.data)}`, 'info');
+                        } else if (data.type === 'vote_cast') {
+                            logMessage(`Vote cast on poll ${data.pollId}: ${JSON.stringify(data.results)}`, 'success');
+                            // Refresh votes and options when a vote is cast
+                            if (data.pollId) {
+                                loadPollOptionsForPoll(data.pollId);
+                                loadPollVotesForPoll(data.pollId);
+                            }
                         }
                     } catch (e) {
                         // Not JSON, display as-is
@@ -311,6 +366,9 @@
                 });
                 ws.send(message);
                 logMessage('Sent: ' + message, 'sent');
+                
+                // Load the poll data after subscribing
+                loadPollDetails(pollId);
             } else {
                 logMessage('Not connected to WebSocket server', 'error');
             }
@@ -425,6 +483,9 @@
                             document.getElementById('votePollId').value = data.data.poll.id;
                             document.getElementById('voteOptionId').value = data.data.poll.options[0].id;
                         }
+
+                        // Refresh the polls list
+                        loadAllPolls();
                     } else {
                         logMessage('Failed to create poll: ' + JSON.stringify(data), 'error');
                     }
@@ -433,6 +494,7 @@
                     logMessage('Error creating poll: ' + error.message, 'error');
                 });
         }
+
         // Simulate a vote
         async function simulateVote() {
             const pollId = document.getElementById('votePollId').value.trim();
@@ -442,7 +504,7 @@
                 alert('Please enter both Poll ID and Option ID');
                 return;
             }
-if(!(await testToken())) await refreshToken();
+            if(!(await testToken())) await refreshToken();
             fetch(`${apiUrl}polls/${pollId}/vote/${optionId}`, {
                 method: 'POST',
                 headers: {
@@ -453,6 +515,9 @@ if(!(await testToken())) await refreshToken();
                 .then(data => {
                     if (data.status === 'success') {
                         logMessage(`Vote cast: ${JSON.stringify(data.data)}`, 'success');
+                        // Refresh the votes and options
+                        loadPollOptionsForPoll(pollId);
+                        loadPollVotesForPoll(pollId);
                     } else {
                         logMessage('Failed to cast vote: ' + JSON.stringify(data), 'error');
                     }
@@ -460,6 +525,200 @@ if(!(await testToken())) await refreshToken();
                 .catch(error => {
                     logMessage('Error casting vote: ' + error.message, 'error');
                 });
+        }
+
+        // Load all polls
+        async function loadAllPolls() {
+            if(!(await testToken())) await refreshToken();
+            fetch(`${apiUrl}polls`, {
+                headers: {
+                    'Authorization': 'Bearer ' + token
+                }
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        displayPolls(data.data.polls);
+                    } else {
+                        logMessage('Failed to load polls: ' + JSON.stringify(data), 'error');
+                    }
+                })
+                .catch(error => {
+                    logMessage('Error loading polls: ' + error.message, 'error');
+                });
+        }
+
+        // Display polls in the UI
+        function displayPolls(polls) {
+            const pollsList = document.getElementById('pollsList');
+            
+            if (!polls || polls.length === 0) {
+                pollsList.innerHTML = '<div class="text-gray-500 text-center py-4">No polls found</div>';
+                return;
+            }
+
+            pollsList.innerHTML = polls.map(poll => `
+                <div class="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 cursor-pointer" 
+                     onclick="loadPollDetails('${poll.id}')">
+                    <h3 class="font-semibold text-gray-800 truncate">${poll.question}</h3>
+                    <div class="text-sm text-gray-600 mt-2">
+                        <div>ID: ${poll.id}</div>
+                        <div>Status: ${poll.isPublished ? 'Published' : 'Draft'}</div>
+                        <div>Created: ${new Date(poll.createdAt).toLocaleDateString()}</div>
+                        <div>Options: ${poll.options ? poll.options.length : 0}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Load poll details
+        async function loadPollDetails(pollId) {
+            if(!(await testToken())) await refreshToken();
+            fetch(`${apiUrl}polls/${pollId}?includeResults=true`, {
+                headers: {
+                    'Authorization': 'Bearer ' + token
+                }
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        displayPollDetails(data.data.poll);
+                        // Also load options and votes
+                        loadPollOptionsForPoll(pollId);
+                        loadPollVotesForPoll(pollId);
+                    } else {
+                        logMessage('Failed to load poll details: ' + JSON.stringify(data), 'error');
+                    }
+                })
+                .catch(error => {
+                    logMessage('Error loading poll details: ' + error.message, 'error');
+                });
+        }
+
+        // Display poll details
+        function displayPollDetails(poll) {
+            const pollsList = document.getElementById('pollsList');
+            pollsList.innerHTML = `
+                <div class="border-2 border-indigo-200 rounded-lg p-4 bg-indigo-50">
+                    <h3 class="font-bold text-indigo-800 text-lg">${poll.question}</h3>
+                    <div class="text-sm text-indigo-600 mt-2">
+                        <div>ID: ${poll.id}</div>
+                        <div>Status: ${poll.isPublished ? 'Published' : 'Draft'}</div>
+                        <div>Created: ${new Date(poll.createdAt).toLocaleDateString()}</div>
+                        <div>Total Votes: ${poll.totalVotes || 0}</div>
+                    </div>
+                    ${poll.results ? `
+                        <div class="mt-3">
+                            <h4 class="font-semibold text-indigo-700">Results:</h4>
+                            ${poll.results.options.map(option => `
+                                <div class="flex justify-between items-center mt-1">
+                                    <span>${option.text}</span>
+                                    <span class="font-medium">${option.voteCount} votes (${option.percentage}%)</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        // Load poll options
+        async function loadPollOptions() {
+            const pollId = document.getElementById('pollIdForOptions').value.trim();
+            if (!pollId) {
+                alert('Please enter a Poll ID');
+                return;
+            }
+            await loadPollOptionsForPoll(pollId);
+        }
+
+        // Load poll options for a specific poll
+        async function loadPollOptionsForPoll(pollId) {
+            if(!(await testToken())) await refreshToken();
+            fetch(`${apiUrl}polls/${pollId}/options`, {
+                headers: {
+                    'Authorization': 'Bearer ' + token
+                }
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        displayPollOptions(data.data.options);
+                    } else {
+                        logMessage('Failed to load poll options: ' + JSON.stringify(data), 'error');
+                    }
+                })
+                .catch(error => {
+                    logMessage('Error loading poll options: ' + error.message, 'error');
+                });
+        }
+
+        // Display poll options
+        function displayPollOptions(options) {
+            const optionsList = document.getElementById('pollOptionsList');
+            
+            if (!options || options.length === 0) {
+                optionsList.innerHTML = '<div class="text-gray-500 text-center py-4">No options found</div>';
+                return;
+            }
+
+            optionsList.innerHTML = options.map(option => `
+                <div class="border border-gray-200 rounded p-3 hover:bg-gray-50">
+                    <div class="font-medium text-gray-800">${option.text}</div>
+                    <div class="text-xs text-gray-500 mt-1">ID: ${option.id}</div>
+                    <div class="text-sm text-gray-600">Created: ${new Date(option.createdAt).toLocaleDateString()}</div>
+                </div>
+            `).join('');
+        }
+
+        // Load poll votes
+        async function loadPollVotes() {
+            const pollId = document.getElementById('pollIdForVotes').value.trim();
+            if (!pollId) {
+                alert('Please enter a Poll ID');
+                return;
+            }
+            await loadPollVotesForPoll(pollId);
+        }
+
+        // Load poll votes for a specific poll
+        async function loadPollVotesForPoll(pollId) {
+            if(!(await testToken())) await refreshToken();
+            fetch(`${apiUrl}votes/polls/${pollId}`, {
+                headers: {
+                    'Authorization': 'Bearer ' + token
+                }
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        displayPollVotes(data.data.votes);
+                    } else {
+                        logMessage('Failed to load poll votes: ' + JSON.stringify(data), 'error');
+                    }
+                })
+                .catch(error => {
+                    logMessage('Error loading poll votes: ' + error.message, 'error');
+                });
+        }
+
+        // Display poll votes
+        function displayPollVotes(votes) {
+            const votesList = document.getElementById('votesList');
+            
+            if (!votes || votes.length === 0) {
+                votesList.innerHTML = '<div class="text-gray-500 text-center py-4">No votes found</div>';
+                return;
+            }
+
+            votesList.innerHTML = votes.map(vote => `
+                <div class="border border-gray-200 rounded p-3 hover:bg-gray-50">
+                    <div class="font-medium text-gray-800">Vote ID: ${vote.id}</div>
+                    <div class="text-xs text-gray-500">Option ID: ${vote.pollOptionId}</div>
+                    <div class="text-sm text-gray-600">User ID: ${vote.userId}</div>
+                    <div class="text-xs text-gray-500">Voted: ${new Date(vote.createdAt).toLocaleString()}</div>
+                </div>
+            `).join('');
         }
 
         // Log messages to the message log
