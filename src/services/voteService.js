@@ -151,7 +151,6 @@ export class VoteService {
       },
       skip,
       take: limit,
-      orderBy: { createdAt: "desc" },
     });
 
     const totalCount = await this.models.prisma.vote.count({

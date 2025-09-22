@@ -288,6 +288,7 @@
                     logMessage('Received: ' + event.data, 'received');
 
                     try {
+                        console.log(event.data)
                         const data = JSON.parse(event.data);
                         if (data.type === 'poll_update') {
                             logMessage(`Poll ${data.pollId} updated: ${JSON.stringify(data.data)}`, 'info');
@@ -590,6 +591,7 @@
                     }
                 })
                 .catch(error => {
+                    console.log(error)
                     logMessage('Error loading poll details: ' + error.message, 'error');
                 });
         }
@@ -604,12 +606,12 @@
                         <div>ID: ${poll.id}</div>
                         <div>Status: ${poll.isPublished ? 'Published' : 'Draft'}</div>
                         <div>Created: ${new Date(poll.createdAt).toLocaleDateString()}</div>
-                        <div>Total Votes: ${poll.totalVotes || 0}</div>
+                        <div>Total Votes: ${poll.results.totalVotes || 0}</div>
                     </div>
                     ${poll.results ? `
                         <div class="mt-3">
                             <h4 class="font-semibold text-indigo-700">Results:</h4>
-                            ${poll.results.options.map(option => `
+                            ${poll.results.results.map(option => `
                                 <div class="flex justify-between items-center mt-1">
                                     <span>${option.text}</span>
                                     <span class="font-medium">${option.voteCount} votes (${option.percentage}%)</span>
@@ -665,7 +667,6 @@
                 <div class="border border-gray-200 rounded p-3 hover:bg-gray-50">
                     <div class="font-medium text-gray-800">${option.text}</div>
                     <div class="text-xs text-gray-500 mt-1">ID: ${option.id}</div>
-                    <div class="text-sm text-gray-600">Created: ${new Date(option.createdAt).toLocaleDateString()}</div>
                 </div>
             `).join('');
         }
@@ -697,6 +698,7 @@
                     }
                 })
                 .catch(error => {
+                    console.log(error)
                     logMessage('Error loading poll votes: ' + error.message, 'error');
                 });
         }
@@ -715,7 +717,6 @@
                     <div class="font-medium text-gray-800">Vote ID: ${vote.id}</div>
                     <div class="text-xs text-gray-500">Option ID: ${vote.pollOptionId}</div>
                     <div class="text-sm text-gray-600">User ID: ${vote.userId}</div>
-                    <div class="text-xs text-gray-500">Voted: ${new Date(vote.createdAt).toLocaleString()}</div>
                 </div>
             `).join('');
         }
