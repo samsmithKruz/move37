@@ -1,9 +1,9 @@
 // src/models/PollOption.js
-import { BaseModel } from './BaseModel.js';
+import { BaseModel } from "./BaseModel.js";
 
 export class PollOption extends BaseModel {
   constructor() {
-    super('pollOption');
+    super("pollOption");
   }
 
   /**
@@ -15,8 +15,8 @@ export class PollOption extends BaseModel {
     return this.model.findUnique({
       where: { id: optionId },
       include: {
-        poll: true
-      }
+        poll: true,
+      },
     });
   }
 
@@ -28,7 +28,6 @@ export class PollOption extends BaseModel {
   async getByPollId(pollId) {
     return this.model.findMany({
       where: { pollId },
-      orderBy: { createdAt: 'asc' }
     });
   }
 
@@ -42,10 +41,10 @@ export class PollOption extends BaseModel {
       where: { pollId },
       include: {
         _count: {
-          select: { votes: true }
-        }
+          select: { votes: true },
+        },
       },
-      orderBy: { createdAt: 'asc' }
+      orderBy: { createdAt: "asc" },
     });
   }
 
@@ -59,8 +58,8 @@ export class PollOption extends BaseModel {
       where: { id: optionId },
       include: {
         votes: true,
-        poll: true
-      }
+        poll: true,
+      },
     });
   }
 
@@ -81,7 +80,7 @@ export class PollOption extends BaseModel {
    */
   async countByPollId(pollId) {
     return this.model.count({
-      where: { pollId }
+      where: { pollId },
     });
   }
 
@@ -94,10 +93,10 @@ export class PollOption extends BaseModel {
    */
   async optionExists(pollId, text, excludeOptionId = null) {
     const options = await this.model.findMany({
-      where: { pollId }
+      where: { pollId },
     });
 
-    return options.some(option => {
+    return options.some((option) => {
       if (excludeOptionId && option.id === excludeOptionId) return false;
       return option.text.toLowerCase() === text.toLowerCase();
     });
@@ -111,7 +110,7 @@ export class PollOption extends BaseModel {
   async createMany(optionsData) {
     return this.model.createMany({
       data: optionsData,
-      skipDuplicates: true
+      skipDuplicates: true,
     });
   }
 
@@ -122,7 +121,7 @@ export class PollOption extends BaseModel {
    */
   async deleteByPollId(pollId) {
     const result = await this.model.deleteMany({
-      where: { pollId }
+      where: { pollId },
     });
     return result.count;
   }
@@ -142,19 +141,20 @@ export class PollOption extends BaseModel {
             options: {
               include: {
                 _count: {
-                  select: { votes: true }
-                }
-              }
-            }
-          }
-        }
-      }
+                  select: { votes: true },
+                },
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!option) return null;
 
     const totalVotes = option.poll.options.reduce(
-      (sum, opt) => sum + opt._count.votes, 0
+      (sum, opt) => sum + opt._count.votes,
+      0
     );
     const voteCount = option.votes.length;
     const percentage = totalVotes > 0 ? (voteCount / totalVotes) * 100 : 0;
@@ -163,7 +163,7 @@ export class PollOption extends BaseModel {
       ...option,
       voteCount,
       percentage: Math.round(percentage),
-      totalVotes
+      totalVotes,
     };
   }
 
@@ -173,10 +173,10 @@ export class PollOption extends BaseModel {
    * @returns {Promise<Array>} Updated options
    */
   async updateMany(updates) {
-    const transaction = updates.map(update =>
+    const transaction = updates.map((update) =>
       this.model.update({
         where: { id: update.id },
-        data: update.data
+        data: update.data,
       })
     );
 
@@ -195,10 +195,10 @@ export class PollOption extends BaseModel {
         pollId,
         text: {
           contains: searchTerm,
-          mode: 'insensitive'
-        }
+          mode: "insensitive",
+        },
       },
-      orderBy: { createdAt: 'asc' }
+      orderBy: { createdAt: "asc" },
     });
   }
 }
