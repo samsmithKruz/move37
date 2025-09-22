@@ -4,6 +4,7 @@ import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import dotenv from "dotenv";
+import { WebSocketServer } from "ws";
 import models from "./models/index.js";
 
 // Import routes
@@ -18,12 +19,18 @@ import errorHandler, { notFoundHandler } from "./middlewares/errorHandler.js";
 import swaggerSpec from "./docs/swagger.js";
 import swaggerUi from "swagger-ui-express";
 import database from "./config/database.js";
-import { getWebSocketService } from "./config/websocket.js";
+import { initializeWebSocket, getWebSocketService } from "./config/websocket.js";
 
 // Load environment variables
 dotenv.config({ quiet: true });
 
 const app = express();
+
+// Create WebSocket server
+const wss = new WebSocketServer({ noServer: true });
+
+// Initialize WebSocket service
+initializeWebSocket(wss, models);
 
 // Middleware
 app.use(
@@ -43,18 +50,22 @@ app.use(
 );
 app.use(
   cors({
-    origin: "*", // For development only, on production we change to match host
+    origin: "*",
   })
 );
 app.use(morgan("combined"));
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
-// Attach models
+// Attach models and WebSocket server to app
 app.use((req, res, next) => {
-  req.models = models; // Attach models to request object
+  req.models = models;
+  req.wss = wss; // Attach WebSocket server to request
   next();
 });
+
+// Store WebSocket server on app for easy access
+app.set("wss", wss);
 
 // API Documentation
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
@@ -65,9 +76,7 @@ app.get("/health", async (req, res) => {
 
   res.status(dbStatus.success ? 200 : 503).json({
     status: dbStatus.success ? "OK" : "Degraded",
-    message: dbStatus.success
-      ? "Server is running"
-      : "Database connection issue",
+    message: dbStatus.success ? "Server is running" : "Database connection issue",
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
     database: dbStatus.success ? "connected" : "disconnected",
@@ -88,11 +97,11 @@ app.get("/api/websocket-stats", (req, res) => {
       status: "success",
       data: webSocketService.getStats(),
     });
-  } 
-    return res.status(503).json({
-      status: "error",
-      message: "WebSocket service not available",
-    });
+  }
+  return res.status(503).json({
+    status: "error",
+    message: "WebSocket service not available",
+  });
 });
 
 // 404 handler
@@ -103,10 +112,9 @@ app.use("*", (req, res) => {
   });
 });
 
-// 404 handler - use our custom middleware
 app.use(notFoundHandler);
-
-// Error handling middleware (should be last)
 app.use(errorHandler);
 
+// Export both app and wss for server.js
+export { wss };
 export default app;

@@ -1,20 +1,13 @@
 // server.js
-import app from "./src/app.js";
-import { WebSocketServer } from "ws";
-import { initializeWebSocket } from "./src/config/websocket.js";
+import app, { wss } from "./src/app.js"; // Import both app and wss
 import database from "./src/config/database.js";
-import models from "./src/models/index.js";
 
 const PORT = process.env.PORT || 3000;
-
-// Initialize WebSocket server
-const wss = new WebSocketServer({ noServer: true });
-const webSocketService = initializeWebSocket(wss, models);
 
 // Start HTTP server with database connection check
 const startServer = async () => {
   try {
-    // Check database connection using singleton
+    // Check database connection
     const connection = await database.checkConnection();
 
     if (!connection.success) {
@@ -30,7 +23,7 @@ const startServer = async () => {
       console.log(`🔌 WebSocket server initialized`);
     });
 
-    // Handle WebSocket upgrades
+    // Handle WebSocket upgrades using the imported wss
     server.on("upgrade", (request, socket, head) => {
       // Optional: Add authentication for WebSocket connections
       wss.handleUpgrade(request, socket, head, (ws) => {
@@ -56,30 +49,24 @@ let server;
 const shutdown = async (signal) => {
   console.log(`\n${signal} received, shutting down gracefully...`);
 
-  // Close HTTP server
   if (server) {
     server.close(() => {
       console.log("✅ HTTP server closed");
     });
   }
 
-  // Close WebSocket server
   wss.close(() => {
     console.log("✅ WebSocket server closed");
   });
 
-  // Close database connection using singleton
   await database.disconnect();
-
   process.exit(0);
 };
 
-// Handle different shutdown signals
 process.on("SIGTERM", () => shutdown("SIGTERM"));
 process.on("SIGINT", () => shutdown("SIGINT"));
 process.on("SIGQUIT", () => shutdown("SIGQUIT"));
 
-// Handle uncaught exceptions
 process.on("uncaughtException", (error) => {
   console.error("💥 Uncaught Exception:", error);
   shutdown("UNCAUGHT_EXCEPTION");

@@ -90,7 +90,8 @@
             <div class="bg-white rounded-lg shadow p-6">
                 <h2 class="text-xl font-semibold text-gray-800 mb-4">Polls</h2>
                 <div class="mb-4">
-                    <button onclick="loadAllPolls()" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded w-full">
+                    <button onclick="loadAllPolls()"
+                        class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded w-full">
                         Load All Polls
                     </button>
                 </div>
@@ -103,9 +104,10 @@
             <div class="bg-white rounded-lg shadow p-6">
                 <h2 class="text-xl font-semibold text-gray-800 mb-4">Poll Options</h2>
                 <div class="mb-4">
-                    <input type="text" id="pollIdForOptions" placeholder="Enter Poll ID" 
+                    <input type="text" id="pollIdForOptions" placeholder="Enter Poll ID"
                         class="w-full px-3 py-2 border border-gray-300 rounded mb-2">
-                    <button onclick="loadPollOptions()" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded w-full">
+                    <button onclick="loadPollOptions()"
+                        class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded w-full">
                         Load Options
                     </button>
                 </div>
@@ -118,9 +120,10 @@
             <div class="bg-white rounded-lg shadow p-6">
                 <h2 class="text-xl font-semibold text-gray-800 mb-4">Votes</h2>
                 <div class="mb-4">
-                    <input type="text" id="pollIdForVotes" placeholder="Enter Poll ID" 
+                    <input type="text" id="pollIdForVotes" placeholder="Enter Poll ID"
                         class="w-full px-3 py-2 border border-gray-300 rounded mb-2">
-                    <button onclick="loadPollVotes()" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded w-full">
+                    <button onclick="loadPollVotes()"
+                        class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded w-full">
                         Load Votes
                     </button>
                 </div>
@@ -255,11 +258,24 @@
                 disconnectBtn.disabled = true;
             }
         }
+        function updateWebsocketStats() {
+            fetch(`${apiUrl}websocket-stats`)
+                .then(response => response.json())
+                .then(data => {
+                    console.log({ data })
+                    if (data.data && data.data.totalClients !== undefined) {
+                        document.getElementById('clientCount').textContent = data.data.totalClients;
+                        document.getElementById('pollSubscriptionCount').textContent =
+                            data.data.pollSubscriptions ? data.data.pollSubscriptions.length : 0;
+                    }
+                })
+                .catch(err => console.error('Error fetching stats:', err));
+        }
 
         // Connect to WebSocket
         function connectWebSocket() {
             const wsUrl = document.getElementById('wsUrl').value;
-            
+
 
             try {
                 ws = new WebSocket(wsUrl);
@@ -270,18 +286,9 @@
                     reconnectAttempts = 0;
 
                     // Request WebSocket stats
-                    setTimeout(() => {
-                        fetch(`${apiUrl}websocket-stats`)
-                            .then(response => response.json())
-                            .then(data => {
-                                if (data.data && data.data.totalClients !== undefined) {
-                                    document.getElementById('clientCount').textContent = data.data.totalClients;
-                                    document.getElementById('pollSubscriptionCount').textContent =
-                                        data.data.pollSubscriptions ? data.data.pollSubscriptions.length : 0;
-                                }
-                            })
-                            .catch(err => console.error('Error fetching stats:', err));
-                    }, 1000);
+                    setTimeout(
+                        updateWebsocketStats()
+                        , 1000);
                 };
 
                 ws.onmessage = function (event) {
@@ -296,6 +303,9 @@
                             if (data.pollId) {
                                 loadPollDetails(data.pollId);
                             }
+                        } else if (data.type === 'subscription_confirmed') {
+                            updateWebsocketStats();
+                            logMessage(`Subscription confirmed`, 'info');
                         } else if (data.type === 'user_update') {
                             logMessage(`User ${data.userId} update: ${JSON.stringify(data.data)}`, 'info');
                         } else if (data.type === 'vote_cast') {
@@ -367,7 +377,7 @@
                 });
                 ws.send(message);
                 logMessage('Sent: ' + message, 'sent');
-                
+
                 // Load the poll data after subscribing
                 loadPollDetails(pollId);
             } else {
@@ -460,7 +470,7 @@
             }
 
             const optionsArray = options.split(',').map(opt => ({ text: opt.trim() }));
-            if(!(await testToken())) await refreshToken();
+            if (!(await testToken())) await refreshToken();
             fetch(`${apiUrl}polls`, {
                 method: 'POST',
                 headers: {
@@ -505,7 +515,7 @@
                 alert('Please enter both Poll ID and Option ID');
                 return;
             }
-            if(!(await testToken())) await refreshToken();
+            if (!(await testToken())) await refreshToken();
             fetch(`${apiUrl}polls/${pollId}/vote/${optionId}`, {
                 method: 'POST',
                 headers: {
@@ -530,7 +540,7 @@
 
         // Load all polls
         async function loadAllPolls() {
-            if(!(await testToken())) await refreshToken();
+            if (!(await testToken())) await refreshToken();
             fetch(`${apiUrl}polls`, {
                 headers: {
                     'Authorization': 'Bearer ' + token
@@ -552,7 +562,7 @@
         // Display polls in the UI
         function displayPolls(polls) {
             const pollsList = document.getElementById('pollsList');
-            
+
             if (!polls || polls.length === 0) {
                 pollsList.innerHTML = '<div class="text-gray-500 text-center py-4">No polls found</div>';
                 return;
@@ -573,7 +583,7 @@
 
         // Load poll details
         async function loadPollDetails(pollId) {
-            if(!(await testToken())) await refreshToken();
+            if (!(await testToken())) await refreshToken();
             fetch(`${apiUrl}polls/${pollId}?includeResults=true`, {
                 headers: {
                     'Authorization': 'Bearer ' + token
@@ -635,7 +645,7 @@
 
         // Load poll options for a specific poll
         async function loadPollOptionsForPoll(pollId) {
-            if(!(await testToken())) await refreshToken();
+            if (!(await testToken())) await refreshToken();
             fetch(`${apiUrl}polls/${pollId}/options`, {
                 headers: {
                     'Authorization': 'Bearer ' + token
@@ -657,7 +667,7 @@
         // Display poll options
         function displayPollOptions(options) {
             const optionsList = document.getElementById('pollOptionsList');
-            
+
             if (!options || options.length === 0) {
                 optionsList.innerHTML = '<div class="text-gray-500 text-center py-4">No options found</div>';
                 return;
@@ -683,7 +693,7 @@
 
         // Load poll votes for a specific poll
         async function loadPollVotesForPoll(pollId) {
-            if(!(await testToken())) await refreshToken();
+            if (!(await testToken())) await refreshToken();
             fetch(`${apiUrl}votes/polls/${pollId}`, {
                 headers: {
                     'Authorization': 'Bearer ' + token
@@ -706,7 +716,7 @@
         // Display poll votes
         function displayPollVotes(votes) {
             const votesList = document.getElementById('votesList');
-            
+
             if (!votes || votes.length === 0) {
                 votesList.innerHTML = '<div class="text-gray-500 text-center py-4">No votes found</div>';
                 return;
