@@ -262,7 +262,6 @@
             fetch(`${apiUrl}websocket-stats`)
                 .then(response => response.json())
                 .then(data => {
-                    console.log({ data })
                     if (data.data && data.data.totalClients !== undefined) {
                         document.getElementById('clientCount').textContent = data.data.totalClients;
                         document.getElementById('pollSubscriptionCount').textContent =
@@ -295,7 +294,6 @@
                     logMessage('Received: ' + event.data, 'received');
 
                     try {
-                        console.log(event.data)
                         const data = JSON.parse(event.data);
                         if (data.type === 'poll_update') {
                             logMessage(`Poll ${data.pollId} updated: ${JSON.stringify(data.data)}`, 'info');
@@ -601,7 +599,6 @@
                     }
                 })
                 .catch(error => {
-                    console.log(error)
                     logMessage('Error loading poll details: ' + error.message, 'error');
                 });
         }
@@ -708,7 +705,6 @@
                     }
                 })
                 .catch(error => {
-                    console.log(error)
                     logMessage('Error loading poll votes: ' + error.message, 'error');
                 });
         }
