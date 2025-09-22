@@ -1,9 +1,9 @@
 // src/models/Vote.js
-import { BaseModel } from './BaseModel.js';
+import { BaseModel } from "./BaseModel.js";
 
 export class Vote extends BaseModel {
   constructor() {
-    super('vote');
+    super("vote");
   }
 
   /**
@@ -15,7 +15,7 @@ export class Vote extends BaseModel {
   async findByUserAndPollOption(userId, pollOptionId) {
     return this.first({
       userId,
-      pollOptionId
+      pollOptionId,
     });
   }
 
@@ -26,16 +26,19 @@ export class Vote extends BaseModel {
    * @returns {Promise<Array>} User's votes
    */
   async getUserVotesForPoll(userId, pollId) {
-    return this.all({
-      userId,
-      pollOption: {
-        pollId
+    return this.all(
+      {
+        userId,
+        pollOption: {
+          pollId,
+        },
+      },
+      {
+        include: {
+          pollOption: true, // ✅ Correct structure
+        },
       }
-    }, {
-      include: {
-        pollOption: true
-      }
-    });
+    );
   }
 
   /**
@@ -45,16 +48,19 @@ export class Vote extends BaseModel {
    * @returns {Promise<Object>} Vote record
    */
   async findByUserAndPoll(userId, pollId) {
-    return this.first({
-      userId,
-      pollOption: {
-        pollId
+    return this.first(
+      {
+        userId,
+        pollOption: {
+          pollId,
+        },
+      },
+      {
+        include: {
+          pollOption: true, // ✅ Correct structure
+        },
       }
-    }, {
-      include: {
-        pollOption: true
-      }
-    });
+    );
   }
 
   /**
@@ -64,7 +70,7 @@ export class Vote extends BaseModel {
    */
   async countByOptionId(optionId) {
     return this.count({
-      pollOptionId: optionId
+      pollOptionId: optionId,
     });
   }
 
@@ -76,8 +82,8 @@ export class Vote extends BaseModel {
   async countByPollId(pollId) {
     return this.count({
       pollOption: {
-        pollId
-      }
+        pollId,
+      },
     });
   }
 
@@ -88,7 +94,7 @@ export class Vote extends BaseModel {
    */
   async deleteByOptionId(optionId) {
     const result = await this.model.deleteMany({
-      where: { pollOptionId: optionId }
+      where: { pollOptionId: optionId },
     });
     return result.count;
   }
@@ -102,9 +108,9 @@ export class Vote extends BaseModel {
     const result = await this.model.deleteMany({
       where: {
         pollOption: {
-          pollId
-        }
-      }
+          pollId,
+        },
+      },
     });
     return result.count;
   }
@@ -117,18 +123,21 @@ export class Vote extends BaseModel {
   async getPollStats(pollId) {
     // This requires raw query or more advanced grouping
     // For now, we'll use the existing methods to build stats
-    const votesByOption = await this.all({
-      pollOption: {
-        pollId
+    const votesByOption = await this.all(
+      {
+        pollOption: {
+          pollId,
+        },
+      },
+      {
+        include: {
+          pollOption: true,
+        },
       }
-    }, {
-      include: {
-        pollOption: true
-      }
-    });
+    );
 
     const optionCounts = {};
-    votesByOption.forEach(vote => {
+    votesByOption.forEach((vote) => {
       const optionId = vote.pollOptionId;
       optionCounts[optionId] = (optionCounts[optionId] || 0) + 1;
     });
@@ -140,8 +149,8 @@ export class Vote extends BaseModel {
       optionVotes: Object.entries(optionCounts).map(([optionId, count]) => ({
         optionId,
         count,
-        percentage: totalVotes > 0 ? (count / totalVotes) * 100 : 0
-      }))
+        percentage: totalVotes > 0 ? (count / totalVotes) * 100 : 0,
+      })),
     };
   }
 }

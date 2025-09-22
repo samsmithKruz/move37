@@ -43,7 +43,7 @@ app.use(
 );
 app.use(
   cors({
-    origin: ["*"], // For development only, on production we change to match host
+    origin: "*", // For development only, on production we change to match host
   })
 );
 app.use(morgan("combined"));

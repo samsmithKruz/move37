@@ -448,6 +448,7 @@ export const deletePoll = catchAsync(async (req, res) => {
  *         description: User has already voted on this poll
  */
 export const voteOnPoll = catchAsync(async (req, res) => {
+  console.log({ models: req.models });
   const pollService = new PollService(req.models, req.app.get("wss"));
   const result = await pollService.voteOnPoll(
     req.params.pollId,

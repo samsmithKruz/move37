@@ -56,10 +56,10 @@ export class BaseModel {
   }
 
   // Find first record matching criteria
-  async first(where = {}, include = undefined) {
+  async first(where = {}, include = {}) {
     return this.model.findFirst({
       where,
-      include
+      ...include
     });
   }
 

@@ -1,4 +1,5 @@
 // src/services/pollService.js
+import Joi from 'joi';
 import {
   ValidationError,
   NotFoundError,
